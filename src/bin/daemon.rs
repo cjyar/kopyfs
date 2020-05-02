@@ -1,8 +1,6 @@
-// use http::Response;
 use futures::executor::block_on;
 use http::uri::{Authority, Scheme};
 use http::Uri;
-use hyper;
 use hyper::body::HttpBody;
 use k8s_openapi::api::core::v1 as corev1;
 use k8s_openapi::{ListResponse, ResponseError};
