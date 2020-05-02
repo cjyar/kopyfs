@@ -1,9 +1,12 @@
 // use http::Response;
 use futures::executor::block_on;
+use http::uri::{Authority, Scheme};
+use http::Uri;
 use hyper;
-use k8s_openapi::api::core::v1 as corev1;
-use std::error::Error;
 use hyper::body::HttpBody;
+use k8s_openapi::api::core::v1 as corev1;
+use k8s_openapi::{ListResponse, ResponseError};
+use std::error::Error;
 
 /// Monitors PVCs and PVs, and local volumes.
 fn main() -> Result<(), Box<dyn Error>> {
@@ -11,7 +14,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn async_main() -> Result<(), Box<dyn Error>> {
-    let client = hyper::Client::builder().build(hyper_tls::HttpsConnector::new());
+    let connector = hyper_tls::HttpsConnector::new();
+    let client = hyper::Client::builder().build(connector);
 
     let (request, response_body) =
         corev1::PersistentVolumeClaim::list_persistent_volume_claim_for_all_namespaces(
@@ -22,9 +26,9 @@ async fn async_main() -> Result<(), Box<dyn Error>> {
     {
         let mut uri = request.uri().clone();
         let mut parts = uri.into_parts();
-        parts.scheme = Some(http::uri::Scheme::HTTPS);
-        parts.authority = Some(http::uri::Authority::from_static("kubernetes.default:443"));
-        uri = http::Uri::from_parts(parts).unwrap();
+        parts.scheme = Some(Scheme::HTTPS);
+        parts.authority = Some(Authority::from_static("kubernetes.default:443"));
+        uri = Uri::from_parts(parts).unwrap();
         *request.uri_mut() = uri;
     }
 
@@ -35,9 +39,9 @@ async fn async_main() -> Result<(), Box<dyn Error>> {
         let chunk = chunk?;
         response_body.append_slice(&chunk);
         match response_body.parse() {
-            Ok(k8s_openapi::ListResponse::Ok(pvc_list)) => println!("{:?}", pvc_list),
-            Ok(k8s_openapi::ListResponse::Other(x)) => println!("Got unexpected type {:?}", x),
-            Err(k8s_openapi::ResponseError::NeedMoreData) => continue,
+            Ok(ListResponse::Ok(pvc_list)) => println!("{:?}", pvc_list),
+            Ok(ListResponse::Other(x)) => println!("Got unexpected type {:?}", x),
+            Err(ResponseError::NeedMoreData) => continue,
             Err(x) => println!("Error parsing PVC: {:?}", x),
         }
     }
