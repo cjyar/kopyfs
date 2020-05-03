@@ -319,6 +319,7 @@ dependencies = [
  "hyper-tls",
  "k8s-openapi",
  "native-tls",
+ "tempfile",
  "tokio",
  "tokio-tls",
 ]

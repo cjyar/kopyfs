@@ -18,7 +18,7 @@ RUN USER=root cargo new project
 WORKDIR /project
 COPY Cargo.toml Cargo.lock ./
 RUN cargo build --release
-RUN cargo build
+RUN cargo test
 RUN cargo clippy --all-targets --all-features
 
 # Build our code.
