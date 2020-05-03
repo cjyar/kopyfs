@@ -4,7 +4,7 @@ use http::Uri;
 use hyper::body::HttpBody;
 use hyper::client::connect::HttpConnector;
 use k8s_openapi::api::core::v1 as corev1;
-use k8s_openapi::{ListResponse, ResponseError};
+use k8s_openapi::{ResponseError, WatchResponse};
 use native_tls::{Certificate, TlsConnector};
 use std::error::Error;
 use std::fs;
@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let (request, response_body) =
-        corev1::PersistentVolumeClaim::list_persistent_volume_claim_for_all_namespaces(
+        corev1::PersistentVolumeClaim::watch_persistent_volume_claim_for_all_namespaces(
             Default::default(),
         )?;
     let mut request = request.map(hyper::Body::from);
@@ -65,8 +65,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let chunk = chunk?;
         response_body.append_slice(&chunk);
         match response_body.parse() {
-            Ok(ListResponse::Ok(pvc_list)) => println!("{:?}", pvc_list),
-            Ok(ListResponse::Other(x)) => println!("Got unexpected type {:?}", x),
+            Ok(WatchResponse::Ok(pvc_list)) => println!("{:?}", pvc_list),
+            Ok(WatchResponse::Other(x)) => println!("Got unexpected type {:?}", x),
             Err(ResponseError::NeedMoreData) => continue,
             Err(x) => println!("Error parsing PVC: {:?}", x),
         }
