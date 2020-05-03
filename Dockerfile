@@ -24,7 +24,7 @@ RUN cargo clippy --all-targets --all-features
 # Build our code.
 COPY src/ /project/src/
 RUN cargo fmt --all -- --check
-RUN cargo clippy --all-targets --all-features
+RUN cargo clippy --all-targets --all-features -- -D warnings
 RUN cargo test
 RUN cargo build --release
 
