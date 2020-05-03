@@ -1,19 +1,26 @@
-use futures::executor::block_on;
 use http::uri::{Authority, Scheme};
 use http::Uri;
 use hyper::body::HttpBody;
+use hyper::client::connect::HttpConnector;
 use k8s_openapi::api::core::v1 as corev1;
 use k8s_openapi::{ListResponse, ResponseError};
+use native_tls::TlsConnector;
 use std::error::Error;
 
 /// Monitors PVCs and PVs, and local volumes.
-fn main() -> Result<(), Box<dyn Error>> {
-    block_on(async_main())
-}
-
-async fn async_main() -> Result<(), Box<dyn Error>> {
-    let connector = hyper_tls::HttpsConnector::new();
-    let client = hyper::Client::builder().build(connector);
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    let client = {
+        let mut http = HttpConnector::new();
+        http.enforce_http(false);
+        let tls = TlsConnector::builder()
+            // TODO Read ca.crt from k8s environment and call add_root_certificate().
+            .danger_accept_invalid_certs(true)
+            .build()?;
+        let tls = tokio_tls::TlsConnector::from(tls);
+        let https = hyper_tls::HttpsConnector::from((http, tls));
+        hyper::Client::builder().build(https)
+    };
 
     let (request, response_body) =
         corev1::PersistentVolumeClaim::list_persistent_volume_claim_for_all_namespaces(

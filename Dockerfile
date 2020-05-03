@@ -29,4 +29,5 @@ RUN cargo test
 RUN cargo build --release
 
 FROM alpine:${ALPINE_VERS} as target
+RUN apk add libgcc
 COPY --from=builder /project/target/release/daemon /bin/

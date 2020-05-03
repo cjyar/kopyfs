@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kopyfs-daemon
+  namespace: kopyfs
+spec:
+  selector:
+    matchLabels:
+      app: kopyfs-daemon
+  template:
+    metadata:
+      labels:
+        app: kopyfs-daemon
+    spec:
+      serviceAccountName: daemon
+      containers:
+      - name: daemon
+        image: cjyar/kopyfs
+        command:
+        - daemon
