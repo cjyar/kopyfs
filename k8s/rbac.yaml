@@ -6,7 +6,7 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - PersistentVolumeClaims
+  - persistentvolumeclaims
   verbs:
   - get
   - list
