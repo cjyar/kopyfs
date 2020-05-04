@@ -72,7 +72,9 @@ impl Client {
             .map_err(|e| WrappedError::from((e, ca_file.display())))?;
 
         // Read the authentication token and build the header.
-        let token = fs::read_to_string(sa_dir.join(Self::AUTH_TOKEN_NAME))?;
+        let token_file = sa_dir.join(Self::AUTH_TOKEN_NAME);
+        let token = fs::read_to_string(&token_file)
+            .map_err(|e| WrappedError::from((e, token_file.display())))?;
         let auth = format!("Bearer {}", token);
         let auth = auth.parse().unwrap();
 
@@ -213,6 +215,27 @@ LUSto1CiXznuhRPLqMPhbEC5dmJiZECr5jgyBHy1FAYAp6ksmkUbySsFzl0xgnHX
         let result = result.expect_err("");
         let result = format!("{:?}", result);
         assert!(result.contains(super::Client::CA_CERT_NAME));
+
+        Ok(())
+    }
+
+    /// If the auth token isn't readable, we should get a descriptive error.
+    #[test]
+    fn bad_token() -> Result<(), std::io::Error> {
+        use tempfile::tempdir;
+
+        let tempdir = tempdir()?;
+        let sa_dir = tempdir.path();
+
+        // Write a mock CA cert.
+        let cert_file = sa_dir.join(super::Client::CA_CERT_NAME);
+        std::fs::write(cert_file, FAKE_CERT).unwrap();
+
+        // Create the client.
+        let result = super::Client::inner_new(sa_dir.as_os_str());
+        let result = result.expect_err("");
+        let result = format!("{:?}", result);
+        assert!(result.contains(super::Client::AUTH_TOKEN_NAME));
 
         Ok(())
     }
