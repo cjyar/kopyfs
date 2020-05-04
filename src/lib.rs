@@ -68,7 +68,8 @@ impl Client {
         let ca_file = sa_dir.join(Self::CA_CERT_NAME);
         let cluster_ca =
             fs::read(&ca_file).map_err(|e| WrappedError::from((e, ca_file.display())))?;
-        let cluster_ca = Certificate::from_pem(&cluster_ca)?;
+        let cluster_ca = Certificate::from_pem(&cluster_ca)
+            .map_err(|e| WrappedError::from((e, ca_file.display())))?;
 
         // Read the authentication token and build the header.
         let token = fs::read_to_string(sa_dir.join(Self::AUTH_TOKEN_NAME))?;
@@ -180,8 +181,38 @@ LUSto1CiXznuhRPLqMPhbEC5dmJiZECr5jgyBHy1FAYAp6ksmkUbySsFzl0xgnHX
         let result = super::Client::inner_new(sa_dir.as_os_str());
         let result = result.expect_err("");
         let result = format!("{:?}", result);
-        println!("{}", result);
         assert!(result.contains(dirname));
+
+        Ok(())
+    }
+
+    /// If the cluster cert isn't readable, we should get a descriptive error.
+    #[test]
+    fn bad_cert() -> Result<(), std::io::Error> {
+        use tempfile::tempdir;
+
+        let tempdir = tempdir()?;
+        let sa_dir = tempdir.path();
+
+        // Corrupt the CA cert file.
+        let cert_file = sa_dir.join(super::Client::CA_CERT_NAME);
+        let bad_cert = {
+            let mut cert = String::from(FAKE_CERT);
+            let mid = FAKE_CERT.len() / 2;
+            cert.insert(mid, 'A');
+            cert
+        };
+        std::fs::write(&cert_file, bad_cert).unwrap();
+
+        // Write a mock auth token.
+        let token_file = sa_dir.join(super::Client::AUTH_TOKEN_NAME);
+        std::fs::write(token_file, "foo").unwrap();
+
+        // Create the client.
+        let result = super::Client::inner_new(sa_dir.as_os_str());
+        let result = result.expect_err("");
+        let result = format!("{:?}", result);
+        assert!(result.contains(super::Client::CA_CERT_NAME));
 
         Ok(())
     }
