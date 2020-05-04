@@ -1,0 +1,19 @@
+[package]
+name = "kopyfs"
+version = "0.1.0"
+authors = ["Chris Jones <chris@cjones.org>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+http = "0.2.1"
+hyper = "0.13.5"
+hyper-tls = "0.4.1"
+k8s-openapi = { version = "0.7.1", features = ["v1_14"] }
+native-tls = "0.2.4"
+tokio = { version = "0.2", features = ["full"] }
+tokio-tls = "0.3.0"
+
+[dev-dependencies]
+tempfile = "3.1.0"
