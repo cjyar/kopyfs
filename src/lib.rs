@@ -5,11 +5,46 @@ use hyper::client::connect::HttpConnector;
 use hyper_tls::HttpsConnector;
 use native_tls::{Certificate, TlsConnector};
 use std::error::Error;
+use std::ffi::OsStr;
+use std::fmt;
+use std::fmt::Display;
 use std::fs;
 use std::path::Path;
-use std::ffi::OsStr;
+
+/// Wraps an error with an explanatory prefix message.
+#[derive(Debug)]
+pub struct WrappedError<E>
+where
+    E: Error,
+{
+    msg: String,
+    err: E,
+}
+
+impl<E> Error for WrappedError<E> where E: Error {}
+
+impl<E, M> From<(E, M)> for WrappedError<E>
+where
+    E: Error,
+    M: Display,
+{
+    fn from((err, msg): (E, M)) -> Self {
+        let msg = format!("{}", msg);
+        WrappedError { msg, err }
+    }
+}
+
+impl<E> Display for WrappedError<E>
+where
+    E: Error,
+{
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}: {}", self.msg, self.err)
+    }
+}
 
 /// Wrapper around hyper Client with some added Kubernetes smarts.
+#[derive(Debug)]
 pub struct Client {
     client: hyper::client::Client<HttpsConnector<HttpConnector>>,
     auth: http::header::HeaderValue,
@@ -30,7 +65,9 @@ impl Client {
     fn inner_new(sa_dir_name: &OsStr) -> Result<Client, Box<dyn Error>> {
         // Read the cluster's CA certificate.
         let sa_dir = Path::new(sa_dir_name);
-        let cluster_ca = fs::read(sa_dir.join(Self::CA_CERT_NAME))?;
+        let ca_file = sa_dir.join(Self::CA_CERT_NAME);
+        let cluster_ca =
+            fs::read(&ca_file).map_err(|e| WrappedError::from((e, ca_file.display())))?;
         let cluster_ca = Certificate::from_pem(&cluster_ca)?;
 
         // Read the authentication token and build the header.
@@ -100,6 +137,8 @@ LUSto1CiXznuhRPLqMPhbEC5dmJiZECr5jgyBHy1FAYAp6ksmkUbySsFzl0xgnHX
 /g==
 -----END CERTIFICATE-----
 ";
+
+    /// Create the client.
     #[test]
     fn client_new() -> Result<(), std::io::Error> {
         use tempfile::tempdir;
@@ -116,7 +155,33 @@ LUSto1CiXznuhRPLqMPhbEC5dmJiZECr5jgyBHy1FAYAp6ksmkUbySsFzl0xgnHX
         std::fs::write(token_file, "foo").unwrap();
 
         // Create the client.
-        super::Client::inner_new(tempdir.path().as_os_str()).unwrap();
+        super::Client::inner_new(sa_dir.as_os_str()).unwrap();
+
+        Ok(())
+    }
+
+    /// If the cluster cert doesn't exist, we should get an error explaining
+    /// the problem.
+    #[test]
+    fn no_ca_file() -> Result<(), std::io::Error> {
+        use std::fs;
+        use tempfile::tempdir;
+
+        let tempdir = tempdir()?;
+        let dirname = "asillynameindeed";
+        let sa_dir = tempdir.path().join(dirname);
+        fs::create_dir_all(&sa_dir)?;
+
+        // Write a mock auth token.
+        let token_file = sa_dir.join(super::Client::AUTH_TOKEN_NAME);
+        std::fs::write(token_file, "foo").unwrap();
+
+        // Create the client.
+        let result = super::Client::inner_new(sa_dir.as_os_str());
+        let result = result.expect_err("");
+        let result = format!("{:?}", result);
+        println!("{}", result);
+        assert!(result.contains(dirname));
 
         Ok(())
     }
