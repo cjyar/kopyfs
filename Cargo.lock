@@ -542,6 +542,7 @@ dependencies = [
 name = "kopyfs"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "k8s-openapi",
  "kube",
  "tokio",
